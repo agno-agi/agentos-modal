@@ -1,10 +1,10 @@
-# AgentOS — Railway template
+# AgentOS — Modal template
 
 This file is the source of truth for any agent (Claude Code, Codex, others) working in this repo. `CLAUDE.md` is a symlink to this file — edit one, both update.
 
 ## Project Overview
 
-**AgentOS — the agent backend for every frontend.** An agent server built on [Agno](https://docs.agno.com) that attaches to any client: **REST** for programmatic use, **chat interfaces** for humans (Slack is wired in; WhatsApp/Telegram/Discord mirror the same pattern), and **MCP** at `/mcp` for AI apps (claude.ai, ChatGPT, Cursor, Claude Code) — which work *through* the platform, not just on it. The repo itself is designed for coding agents to build and extend. Two flagship agents — Agent Builder (creates agents, teams, and workflows) and Platform Manager (understands, monitors, and explains the platform) — plus WebSearch as the simplest sample agent to copy. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Runs locally via Docker; this template deploys to Railway with a single script and is the reference sibling of the `agentos-*` deployment family — see [Portable core vs. deploy layer](#portable-core-vs-deploy-layer).
+**AgentOS — the agent backend for every frontend.** An agent server built on [Agno](https://docs.agno.com) that attaches to any client: **REST** for programmatic use, **chat interfaces** for humans (Slack is wired in; WhatsApp/Telegram/Discord mirror the same pattern), and **MCP** at `/mcp` for AI apps (claude.ai, ChatGPT, Cursor, Claude Code) — which work *through* the platform, not just on it. The repo itself is designed for coding agents to build and extend. Two flagship agents — Agent Builder (creates agents, teams, and workflows) and Platform Manager (understands, monitors, and explains the platform) — plus WebSearch as the simplest sample agent to copy. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Runs locally via Docker; this template deploys to Modal (paired with Neon Postgres) with a single script and is the Modal sibling of the `agentos-*` deployment family — see [Portable core vs. deploy layer](#portable-core-vs-deploy-layer).
 
 ## Architecture
 
@@ -47,7 +47,8 @@ Shared:
 | [`.agents/skills/`](.agents/skills/) | Dev-time **coding-agent workflows** (`create-new-agent`, `extend-agent`, `improve-agent`, `eval-and-improve`, `review-and-improve`) — slash commands coding agents run *on this repo*. `.claude/skills` is a committed symlink into it — see [Working with coding agents](#working-with-coding-agents). |
 | [`README.md`](README.md) | Public entry point — leads with the copy-paste setup prompt that takes a coding agent from clone to connected. |
 | [`compose.yaml`](compose.yaml) | Docker Compose for local development. |
-| [`railway.json`](railway.json) | Railway deploy config (Docker + 1 replica + 4Gi/2vCPU). |
+| [`modal_app.py`](modal_app.py) | Modal deploy config — ASGI app from the repo's Dockerfile at 2 CPU/4 GB, min_containers=1 (always-warm scheduler + MCP), max_containers=1 (never two schedulers), @modal.concurrent for parallel requests. |
+| [`scripts/modal/`](scripts/modal/) | Modal deploy layer — up.sh creates the Neon project + secret + deploys; env-sync/redeploy/down manage the lifecycle. |
 
 ## Development Setup
 
@@ -187,10 +188,10 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `OPENAI_API_KEY` | yes | — | OpenAI key for models + embeddings. |
-| `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
+| `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put `dev` in an env file that env-sync.sh pushes to Modal, or production serves unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | — | Public key from os.agno.com. Required when `RUNTIME_ENV=prd` and `authorization=True`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | — | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
-| `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL — cron triggers reach AgentOS over this. `scripts/railway/up.sh` auto-sets it to the created Railway domain (and writes it back into your env file); only set it by hand for custom domains or tunnels. Left at the localhost default in prod, scheduled jobs silently never fire. |
+| `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL — cron triggers reach AgentOS over this. `scripts/modal/up.sh` pins it to the stable `https://<workspace>--agentos.modal.run` URL and writes it back into your env file; only set it by hand for custom domains. Left at the localhost default in prod, scheduled jobs silently never fire. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron (`app/schedules.py`) runs daily by default. Set `False` to disable; the workflow stays runnable on demand regardless. |
 | `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
 | `EVALS_TAG` | no | `smoke` | Eval tag run by the run-evals workflow. |
@@ -245,30 +246,32 @@ For Discord, Telegram, WhatsApp, and custom UIs, mirror the Slack conditional pa
 
 ## Portable core vs. deploy layer
 
-This repo is the Railway sibling of the `agentos-*` deployment family (agentos-docker, agentos-aws, agentos-fly, agentos-gcp, agentos-azure, agentos-modal). Everything that defines the platform is **portable core — identical across the family**: `agents/`, `app/`, `db/`, `workflows/`, `evals/`, the MCP server wiring, the interfaces, and the coding-agent skills in `.agents/skills/`. `Dockerfile`, `compose.yaml`, and `scripts/entrypoint.sh` are shared local-dev/runtime infra, also not deployment-specific.
+This repo is the Modal sibling of the `agentos-*` deployment family ([agentos-railway](https://github.com/agno-agi/agentos-railway) is the reference; agentos-docker is the self-hosted sibling; agentos-aws, agentos-fly, agentos-gcp, agentos-azure, agentos-helm, agentos-render cover the other targets). Everything that defines the platform is **portable core — identical across the family**: `agents/`, `app/`, `db/`, `workflows/`, `evals/`, the MCP server wiring, the interfaces, and the coding-agent skills in `.agents/skills/`. `Dockerfile`, `compose.yaml`, and `scripts/entrypoint.sh` are shared local-dev/runtime infra, also not deployment-specific.
 
-The **Railway-specific deploy layer** — what a sibling template swaps out — is exactly:
+The **Modal-specific deploy layer** — what a sibling template swaps out — is exactly:
 
-- [`railway.json`](railway.json)
-- [`scripts/railway/`](scripts/railway/) (`up.sh`, `env-sync.sh`, `redeploy.sh`, `down.sh`)
-- the "Deploying to Railway" prose here and in the README
+- [`modal_app.py`](modal_app.py)
+- [`scripts/modal/`](scripts/modal/) (`up.sh`, `env-sync.sh`, `redeploy.sh`, `down.sh`)
+- the "Deploying to Modal" prose here and in the README
 
-When editing, keep that boundary crisp: platform behavior belongs in the core, Railway mechanics belong in the deploy layer, and nothing in the core should import from or depend on it.
+When editing, keep that boundary crisp: platform behavior belongs in the core, Modal mechanics belong in the deploy layer, and nothing in the core should import from or depend on it.
 
-## Deploying to Railway
+## Deploying to Modal
 
 ```bash
-./scripts/railway/up.sh        # provision Postgres + agent-os service
-./scripts/railway/env-sync.sh  # sync .env.production (default) or .env
-./scripts/railway/redeploy.sh  # redeploy after code changes
-./scripts/railway/down.sh      # delete the Railway project (asks for confirmation; --yes to skip)
+./scripts/modal/up.sh        # Neon project + agentos-secrets + modal deploy (×2: env pin rides rev 2)
+./scripts/modal/env-sync.sh  # rewrite the secret from .env.production (default) or .env + redeploy
+./scripts/modal/redeploy.sh  # rebuild (cached) + roll the always-warm container
+./scripts/modal/down.sh      # stop the app + delete the Neon project (asks; --yes to skip)
 ```
 
-`up.sh` creates the domain before deploying and sets `AGENTOS_URL` to it (on Railway and in your env file), so the scheduler is reachable in prod out of the box.
+Modal has no managed Postgres, so `up.sh` pairs the app with a **Neon** project (pgvector included; the app runs `CREATE EXTENSION` itself). The connection rides the family's discrete `DB_*` values — parsed out of Neon's connection URI, persisted to your env file, and delivered via the `agentos-secrets` Modal secret. **Neon requires TLS: the secret carries `PGSSLMODE=require`**, which libpq/psycopg honors, so the portable core needs no change.
 
-JWT auth is on by default. After creating the Railway domain, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live AgentOS`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM into the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. The script re-reads the env file and pushes the key before the first deploy. If you skip the prompt or run non-interactively, add the key later and run `./scripts/railway/env-sync.sh`.
+[`modal_app.py`](modal_app.py) builds the image from this repo's own Dockerfile (identical runtime to every sibling; Modal ignores the ENTRYPOINT, and no wait-for-db gate is needed against always-on Neon) and serves the FastAPI app with three load-bearing settings: `min_containers=1` (always-warm — the in-process scheduler and MCP streams die with scale-to-zero), `max_containers=1` (two containers double-fire every cron), and `@modal.concurrent` (without it Modal feeds the container one request at a time and MCP streams would starve the REST API). The URL is stable: `https://<workspace>--agentos.modal.run`.
 
-The Railway *project* is `agentos-railway`; the app *service* is `agent-os`.
+JWT auth is on by default. Once the URL exists, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live AgentOS`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM at the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. If you skip the prompt or run non-interactively, add the key later and run `./scripts/modal/env-sync.sh`.
+
+One Modal-specific caveat to verify on the first cloud E2E: Modal may cycle the warm container during platform maintenance; the scheduler re-registers idempotently on boot (`app/schedules.py`), but a cron falling exactly inside a cycle window would skip one firing.
 
 ## Common Tasks
 
@@ -287,8 +290,8 @@ docker compose up -d --build
 # Build a multi-arch image (maintainer-only)
 ./scripts/build_image.sh
 
-# Tail Railway logs
-railway logs --service agent-os
+# Tail Modal logs
+modal app logs agentos
 ```
 
 ## Documentation Links
