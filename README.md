@@ -91,7 +91,7 @@ It auto-detects Claude Code, Claude Desktop, Codex, and Cursor, registers `http:
 
 ## Run in production
 
-You can run the platform anywhere that supports containerized images. This sibling deploys the container to [Modal](https://modal.com) (always-warm, single container) paired with [Neon](https://neon.tech) serverless Postgres for pgvector persistence — Modal has no managed Postgres of its own.
+You can run the platform anywhere that supports containerized images. This template deploys the container to [Modal](https://modal.com) (always-warm, single container) paired with [Neon](https://neon.tech) serverless Postgres for pgvector persistence — Modal has no managed Postgres of its own.
 
 > **Prerequisites:** the [modal CLI](https://modal.com/docs/guide) (`pip install modal` + `modal token new`) and [neonctl](https://neon.tech/docs/reference/neon-cli) (`brew install neonctl` + `neonctl auth`).
 
