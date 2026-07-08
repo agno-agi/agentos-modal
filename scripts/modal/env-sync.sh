@@ -95,7 +95,7 @@ modal secret create --force agentos-secrets "${SECRET_ARGS[@]}" > /dev/null
 
 echo ""
 echo -e "${BOLD}Redeploying so the running container picks the secret up...${NC}"
-modal deploy modal_app.py > /dev/null
+modal deploy modal_app.py::modal_app > /dev/null
 
 echo ""
 echo -e "${BOLD}Done.${NC} Synced ${count} variable(s)."

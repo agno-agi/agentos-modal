@@ -31,7 +31,7 @@ fi
 echo ""
 echo -e "${BOLD}Redeploying agentos to Modal...${NC}"
 echo ""
-modal deploy modal_app.py
+modal deploy modal_app.py::modal_app
 
 echo ""
 echo -e "${BOLD}Done.${NC}"

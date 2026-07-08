@@ -43,6 +43,13 @@ ENV/
 .envrc
 
 # =========================
+# Node (local neonctl install for Modal/Neon deploy scripts)
+# =========================
+node_modules/
+package.json
+package-lock.json
+
+# =========================
 # Jupyter / notebooks
 # =========================
 .ipynb_checkpoints/

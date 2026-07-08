@@ -237,7 +237,7 @@ write_modal_secret
 echo ""
 echo -e "${BOLD}Deploying to Modal (first build takes a few minutes)...${NC}"
 echo ""
-modal deploy modal_app.py
+modal deploy modal_app.py::modal_app
 
 # The URL is stable across redeploys: https://<workspace>--agentos.modal.run
 WORKSPACE="$(modal profile current 2> /dev/null | tr -d '[:space:]')"
@@ -289,7 +289,7 @@ fi
 echo ""
 echo -e "${BOLD}Applying final env (second deploy)...${NC}"
 write_modal_secret
-modal deploy modal_app.py > /dev/null
+modal deploy modal_app.py::modal_app > /dev/null
 
 echo ""
 echo -e "${BOLD}Done.${NC}"
