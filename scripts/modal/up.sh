@@ -197,7 +197,12 @@ fi
 if [[ -z "$DB_HOST" || -z "$DB_PASS" ]]; then
     echo ""
     echo -e "${BOLD}Creating Neon Postgres project...${NC}"
-    NEON_JSON="$(neonctl projects create --name agentos --output json)"
+    # Neon projects are org-scoped; neonctl prompts (and hangs non-interactive
+    # runs) without an org. Pass --org-id when NEON_ORG_ID is set so the deploy
+    # runs unattended. Find yours with: neonctl orgs list
+    ORG_ARG=()
+    [[ -n "$NEON_ORG_ID" ]] && ORG_ARG=(--org-id "$NEON_ORG_ID")
+    NEON_JSON="$(neonctl projects create --name agentos --output json "${ORG_ARG[@]}")"
     eval "$(printf '%s' "$NEON_JSON" | python3 -c '
 import json, sys
 from urllib.parse import urlparse
@@ -237,7 +242,7 @@ write_modal_secret
 echo ""
 echo -e "${BOLD}Deploying to Modal (first build takes a few minutes)...${NC}"
 echo ""
-modal deploy modal_app.py
+modal deploy modal_app.py::modal_app
 
 # The URL is stable across redeploys: https://<workspace>--agentos.modal.run
 WORKSPACE="$(modal profile current 2> /dev/null | tr -d '[:space:]')"
@@ -289,7 +294,7 @@ fi
 echo ""
 echo -e "${BOLD}Applying final env (second deploy)...${NC}"
 write_modal_secret
-modal deploy modal_app.py > /dev/null
+modal deploy modal_app.py::modal_app > /dev/null
 
 echo ""
 echo -e "${BOLD}Done.${NC}"

@@ -97,7 +97,7 @@ can you access my agentos mcp?
 
 You can run the platform anywhere that supports containerized images. This template deploys the container to [Modal](https://modal.com) (always-warm, single container) paired with [Neon](https://neon.tech) serverless Postgres for pgvector persistence — Modal has no managed Postgres of its own.
 
-> **Prerequisites:** the [modal CLI](https://modal.com/docs/guide) (`pip install modal` + `modal token new`) and [neonctl](https://neon.tech/docs/reference/neon-cli) (`brew install neonctl` + `neonctl auth`).
+> **Prerequisites:** the [modal CLI](https://modal.com/docs/guide) (`pip install modal` + `modal token new`) and [neonctl](https://neon.tech/docs/reference/neon-cli) (`npm i -g neonctl` or `brew install neonctl`, then `neonctl auth`).
 
 ### 1. Set up your production env
 
@@ -117,6 +117,8 @@ Keeping a separate `.env.production` lets us use different values for local and 
 ```
 
 This creates a Neon Postgres project (pgvector included; connection facts persist to your env file), writes the `agentos-secrets` Modal secret, and `modal deploy`s the app from [`modal_app.py`](modal_app.py) — the image is built from this repo's own Dockerfile, kept always-warm with `min_containers=1` and capped at `max_containers=1` (the in-process scheduler must not run twice). The script then pins `AGENTOS_URL` to the stable `https://<workspace>--agentos.modal.run` URL and pauses for a JWT verification key (see next section).
+
+> **Neon project & organizations.** `up.sh` creates the Neon project with `neonctl`. Neon projects are org-scoped, so `neonctl projects create` needs an organization — set `NEON_ORG_ID` (find it with `neonctl orgs list`) in `.env.production` so the deploy runs unattended instead of stopping at an interactive org prompt. Alternatively, create the project yourself at [console.neon.tech](https://console.neon.tech) and fill `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` in `.env.production`; `up.sh` detects those and skips creation. In that case `NEON_PROJECT_ID` won't be set, so `down.sh` can't delete the database — remove it by hand in the Neon console.
 
 ### 3. Production Auth
 
