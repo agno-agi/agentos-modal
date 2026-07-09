@@ -22,7 +22,8 @@ Configuration comes from the ``agentos-secrets`` Modal secret, created and
 managed by ``scripts/modal/up.sh`` / ``env-sync.sh`` (it carries
 OPENAI_API_KEY, the discrete DB_* values for Neon, PGSSLMODE=require —
 Neon requires TLS and libpq honors the env var, so the portable core needs
-no change — and JWT config once minted).
+no change — AGENTOS_URL + MCP_CONNECT_SECRET for MCP OAuth, and JWT config
+once minted).
 """
 
 # Deploy-layer dependency: `modal` is deliberately not in the core

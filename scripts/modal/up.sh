@@ -154,6 +154,7 @@ write_modal_secret() {
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
     [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
     [[ -n "$JWT_VERIFICATION_KEY" ]] && args+=("JWT_VERIFICATION_KEY=${JWT_VERIFICATION_KEY}")
+    [[ -n "$JWT_JWKS_FILE" ]] && args+=("JWT_JWKS_FILE=${JWT_JWKS_FILE}")
     [[ -n "$PARALLEL_API_KEY" ]] && args+=("PARALLEL_API_KEY=${PARALLEL_API_KEY}")
     [[ -n "$SLACK_BOT_TOKEN" ]] && args+=("SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}")
     [[ -n "$SLACK_SIGNING_SECRET" ]] && args+=("SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}")

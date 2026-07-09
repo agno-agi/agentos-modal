@@ -259,7 +259,7 @@ Because the repo is managed by coding agents, it moves fast. Run `/review-and-im
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |
-| `NEON_PROJECT_ID` | no | none | Modal deploy only — `scripts/modal/up.sh` provisions a Neon project via `neonctl` and persists its id here; `env-sync.sh`/`down.sh` reuse it (never synced to the app). If you create the project yourself at [console.neon.tech](https://console.neon.tech), fill the `DB_*` values instead and `up.sh` skips creation — but then `down.sh` can't delete the database, so remove it by hand. |
+| `NEON_PROJECT_ID` | no | none | Modal deploy only — `scripts/modal/up.sh` provisions a Neon project via `neonctl` and persists its id here; `down.sh` reads it to delete the project; `env-sync.sh` deliberately skips NEON_* keys (never synced to the app). If you create the project yourself at [console.neon.tech](https://console.neon.tech), fill the `DB_*` values instead and `up.sh` skips creation — but then `down.sh` can't delete the database, so remove it by hand. |
 | `NEON_ORG_ID` | no | none | Modal deploy only — `neonctl` requires an org even when you only have one: `neonctl projects create` prompts for it and hangs non-interactive runs. Set it (find yours with `neonctl orgs list`) so `up.sh` can pass `--org-id` and run unattended. |
 | `AGNO_DEBUG` | no | `False` | If `True`, Agno emits verbose debug logs. Compose sets this for dev. |
 | `WAIT_FOR_DB` | no | `False` | If `True`, the entrypoint blocks on the DB before starting. Compose sets this. |
