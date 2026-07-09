@@ -18,6 +18,7 @@
 set -e
 
 # Colors
+ORANGE='\033[38;5;208m'
 DIM='\033[2m'
 BOLD='\033[1m'
 RED='\033[31m'
@@ -45,7 +46,9 @@ if [[ -z "$NEON_PROJECT_ID" ]]; then
 fi
 
 echo ""
-echo -e "${BOLD}This destroys:${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Modal Teardown${NC}"
+echo ""
+echo -e "This destroys:"
 echo -e "  - Modal app      agentos (and the agentos-secrets secret)"
 if [[ -n "$NEON_PROJECT_ID" ]]; then
     echo -e "  - Neon project   ${NEON_PROJECT_ID}  ${RED}(all data deleted)${NC}"
@@ -64,7 +67,7 @@ if [[ "$1" != "--yes" ]]; then
 fi
 
 echo ""
-echo -e "${BOLD}Stopping the Modal app...${NC}"
+echo -e "${DIM}> modal app stop agentos${NC}"
 modal app stop agentos \
     || echo -e "${DIM}Stop returned non-zero — verifying below${NC}"
 modal secret delete agentos-secrets --yes 2> /dev/null \
@@ -72,7 +75,7 @@ modal secret delete agentos-secrets --yes 2> /dev/null \
 
 if [[ -n "$NEON_PROJECT_ID" ]]; then
     echo ""
-    echo -e "${BOLD}Deleting the Neon project...${NC}"
+    echo -e "${DIM}> neonctl projects delete ${NEON_PROJECT_ID}${NC}"
     neonctl projects delete "$NEON_PROJECT_ID" \
         || echo -e "${DIM}Delete returned non-zero — verifying below${NC}"
 fi
@@ -80,12 +83,12 @@ fi
 # Gone only when the platforms no longer list them.
 if modal app list 2> /dev/null | grep -E '\bagentos\b' | grep -qiv stopped; then
     echo ""
-    echo -e "${BOLD}Teardown incomplete${NC} — 'agentos' still shows non-stopped on Modal. Check: modal app list"
+    echo -e "${RED}${BOLD}Teardown incomplete${NC} — 'agentos' still shows non-stopped on Modal. Check: modal app list"
     exit 1
 fi
 if [[ -n "$NEON_PROJECT_ID" ]] && neonctl projects list --output json 2> /dev/null | grep -qF "$NEON_PROJECT_ID"; then
     echo ""
-    echo -e "${BOLD}Teardown incomplete${NC} — Neon project still listed. Check: neonctl projects list"
+    echo -e "${RED}${BOLD}Teardown incomplete${NC} — Neon project still listed. Check: neonctl projects list"
     exit 1
 fi
 

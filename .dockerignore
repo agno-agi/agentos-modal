@@ -24,13 +24,13 @@
 venv*
 aienv*
 
-# Node (local neonctl install for the Modal/Neon deploy scripts — not part of the image)
-node_modules
-package.json
-package-lock.json
-
 .ipynb_checkpoints
 
 # Project-specific
 tmp/
 .claude/
+
+# Node (local deploy-tooling installs — not part of the image)
+node_modules
+package.json
+package-lock.json

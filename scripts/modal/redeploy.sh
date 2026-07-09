@@ -15,6 +15,7 @@
 set -e
 
 # Colors
+ORANGE='\033[38;5;208m'
 DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
@@ -29,7 +30,9 @@ if ! modal app list > /dev/null 2>&1; then
 fi
 
 echo ""
-echo -e "${BOLD}Redeploying agentos to Modal...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Redeploying agentos${NC}"
+echo ""
+echo -e "${DIM}> modal deploy modal_app.py::modal_app${NC}"
 echo ""
 modal deploy modal_app.py::modal_app
 
