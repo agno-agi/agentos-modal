@@ -19,6 +19,7 @@
 set -e
 
 # Colors
+ORANGE='\033[38;5;208m'
 DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
@@ -36,7 +37,9 @@ if ! command -v modal &> /dev/null; then
 fi
 
 echo ""
-echo -e "${BOLD}Syncing env vars from ${ENV_FILE} to the agentos-secrets Modal secret...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Syncing env vars${NC}"
+echo ""
+echo -e "${DIM}> ${ENV_FILE} -> Modal secret agentos-secrets${NC}"
 echo ""
 
 # Parse the env file, treating PEM blocks (and other multiline values) as a
@@ -94,7 +97,8 @@ SECRET_ARGS+=("PGSSLMODE=require")
 modal secret create --force agentos-secrets "${SECRET_ARGS[@]}" > /dev/null
 
 echo ""
-echo -e "${BOLD}Redeploying so the running container picks the secret up...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Redeploying so the running container picks the secret up${NC}"
+echo -e "${DIM}> modal deploy modal_app.py::modal_app${NC}"
 modal deploy modal_app.py::modal_app > /dev/null
 
 echo ""

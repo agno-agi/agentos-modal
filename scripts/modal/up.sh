@@ -13,7 +13,8 @@
 #    (serverless Postgres with pgvector). up.sh: create the Neon project
 #    (once; NEON_PROJECT_ID + DB_* persist to your env file) → write the
 #    agentos-secrets Modal secret → `modal deploy` → pin AGENTOS_URL →
-#    JWT pause → second deploy carrying the final env.
+#    generate MCP_CONNECT_SECRET (chat-app OAuth) when missing → JWT
+#    pause → second deploy carrying the final env.
 #
 #    Prerequisites:
 #      - modal CLI (`pip install modal` or `uv tool install modal`) +
@@ -151,6 +152,7 @@ write_modal_secret() {
         "PGSSLMODE=require"
     )
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
+    [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
     [[ -n "$JWT_VERIFICATION_KEY" ]] && args+=("JWT_VERIFICATION_KEY=${JWT_VERIFICATION_KEY}")
     [[ -n "$PARALLEL_API_KEY" ]] && args+=("PARALLEL_API_KEY=${PARALLEL_API_KEY}")
     [[ -n "$SLACK_BOT_TOKEN" ]] && args+=("SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}")
@@ -196,7 +198,7 @@ fi
 # re-runs (and env-sync/down) reuse them.
 if [[ -z "$DB_HOST" || -z "$DB_PASS" ]]; then
     echo ""
-    echo -e "${BOLD}Creating Neon Postgres project...${NC}"
+    echo -e "${ORANGE}▸${NC} ${BOLD}Creating Neon Postgres project${NC}"
     # Neon projects are org-scoped; neonctl prompts (and hangs non-interactive
     # runs) without an org. Pass --org-id when NEON_ORG_ID is set so the deploy
     # runs unattended. Find yours with: neonctl orgs list
@@ -236,11 +238,11 @@ else
 fi
 
 echo ""
-echo -e "${BOLD}Writing Modal secret (agentos-secrets)...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Writing Modal secret (agentos-secrets)${NC}"
 write_modal_secret
 
 echo ""
-echo -e "${BOLD}Deploying to Modal (first build takes a few minutes)...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Deploying to Modal (first build takes a few minutes)${NC}"
 echo ""
 modal deploy modal_app.py::modal_app
 
@@ -255,12 +257,24 @@ if [[ -z "$AGENTOS_URL" ]]; then
     echo -e "${DIM}Set AGENTOS_URL=${AGENTOS_URL}${NC}"
 fi
 
+# MCP OAuth — claude.ai and ChatGPT (web) connect over OAuth only, and the
+# consent page is gated by MCP_CONNECT_SECRET, so the user must create the secret manually.
+# We generate a secret on behalf of the user when the env file doesn't have one.
+# The second deploy below ships it via the agentos-secrets Modal secret.
+if [[ -z "$MCP_CONNECT_SECRET" ]]; then
+    MCP_CONNECT_SECRET="$(openssl rand -base64 32)"
+    export MCP_CONNECT_SECRET
+    ENV_FILE="${ENV_FILE:-.env.production}"
+    persist_env_var MCP_CONNECT_SECRET "$MCP_CONNECT_SECRET" "$ENV_FILE"
+    echo -e "${DIM}Generated MCP_CONNECT_SECRET -> ${ENV_FILE} + Modal secret (shown in the summary below)${NC}"
+fi
+
 AUTH_REQUIRES_JWT=1
 [[ "${RUNTIME_ENV:-prd}" == "dev" ]] && AUTH_REQUIRES_JWT=""
 
 if [[ -n "$AUTH_REQUIRES_JWT" && -z "$JWT_VERIFICATION_KEY" && -z "$JWT_JWKS_FILE" && -t 0 ]]; then
     echo ""
-    echo -e "${BOLD}JWT_VERIFICATION_KEY not set${NC} — AgentOS won't serve production traffic without auth."
+    echo -e "${ORANGE}▸${NC} ${BOLD}JWT_VERIFICATION_KEY not set${NC} — AgentOS won't serve production traffic without auth."
     echo -e "  1. Open ${BOLD}https://os.agno.com${NC} -> Connect OS -> Live -> enter ${APP_URL}"
     echo -e "  2. Name it ${BOLD}Live AgentOS${NC}"
     echo -e "  3. Note: Live AgentOS Connections are a paid feature; use ${BOLD}PLATFORM30${NC} to get 1 month off"
@@ -289,10 +303,11 @@ if [[ -n "$AUTH_REQUIRES_JWT" && -z "$JWT_VERIFICATION_KEY" && -z "$JWT_JWKS_FIL
     echo -e "${DIM}JWT_VERIFICATION_KEY to ${ENV_FILE:-.env.production} and run ./scripts/modal/env-sync.sh.${NC}"
 fi
 
-# Second deploy: the secret now carries AGENTOS_URL (+ JWT if minted).
-# Secrets are read at container start, so a redeploy applies them.
+# Second deploy: the secret now carries AGENTOS_URL + MCP_CONNECT_SECRET
+# (+ JWT if minted). Secrets are read at container start, so a redeploy
+# applies them.
 echo ""
-echo -e "${BOLD}Applying final env (second deploy)...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Applying final env (second deploy)${NC}"
 write_modal_secret
 modal deploy modal_app.py::modal_app > /dev/null
 
@@ -300,7 +315,13 @@ echo ""
 echo -e "${BOLD}Done.${NC}"
 echo -e "${DIM}URL:            ${APP_URL}  (docs at /docs, MCP at /mcp)${NC}"
 echo -e "${DIM}Logs:           modal app logs agentos${NC}"
-echo -e "${DIM}Sync env vars:  ./scripts/modal/env-sync.sh  (defaults to .env.production)${NC}"
-[[ -n "$APP_URL" ]] && echo -e "${DIM}Connect apps:   uvx agno connect --url ${APP_URL}  (Claude Desktop + coding agents; mints a service-account token — see README)${NC}"
+echo -e "${DIM}Sync env vars:  ./scripts/modal/env-sync.sh${NC}"
+[[ -n "$APP_URL" ]] && echo -e "${DIM}Connect apps:   uvx agno connect --url ${APP_URL}${NC}"
+if [[ -n "$APP_URL" && -n "$MCP_CONNECT_SECRET" ]]; then
+    echo -e "${DIM}Chat apps:      add ${APP_URL}/mcp as a custom connector in claude.ai / ChatGPT${NC}"
+    echo -e "${DIM}                (leave the optional OAuth client ID/secret fields empty).${NC}"
+    echo -e "${DIM}                Then click Connect and approve the consent page with this secret:${NC}"
+    echo -e "${BOLD}                ${MCP_CONNECT_SECRET}${NC}"
+fi
 echo -e "${DIM}Teardown:       ./scripts/modal/down.sh${NC}"
 echo ""

@@ -43,13 +43,6 @@ ENV/
 .envrc
 
 # =========================
-# Node (local neonctl install for Modal/Neon deploy scripts)
-# =========================
-node_modules/
-package.json
-package-lock.json
-
-# =========================
 # Jupyter / notebooks
 # =========================
 .ipynb_checkpoints/
@@ -83,6 +76,11 @@ tmp
 # Other coding agents write their own config here (Codex, etc.) — keep it local.
 # The shared, vendor-neutral assets live in .agents/skills/ and .mcp.json.
 .codex/
+
+# Node (local tooling installs for deploy scripts)
+node_modules/
+package.json
+package-lock.json
 
 # Optional: local PyPI creds (uncomment if you ever create it)
 # .pypirc
