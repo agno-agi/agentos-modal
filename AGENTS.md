@@ -4,7 +4,7 @@ This file is the source of truth for any agent (Claude Code, Codex, others) work
 
 ## Project Overview
 
-**AgentOS: FastAPI for agents — one AI backend for every frontend.** AgentOS is an agent server built on [Agno](https://docs.agno.com) that turns your agents into a production API that attaches to any client: **REST API** for programmatic use, **chat interfaces** for humans (Slack is wired in; WhatsApp/Telegram/Discord mirror the same pattern), and **MCP** at `/mcp` for AI apps (claude.ai, ChatGPT, Cursor, Claude Code) — which work *through* the platform, not just on it. The repo itself is designed for coding agents to build and extend. It comes with six coding agent skills that manage platform setup and the full agent development lifecycle and two platform agents — Agent Builder (creates agents, teams, and workflows) and Platform Manager (understands, monitors, and explains the platform) — plus WebSearch as the simplest sample agent to copy. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Runs locally via Docker; this template deploys to Modal (paired with Neon Postgres) with a single script and is the Modal sibling of the `agentos-*` deployment family — see [Portable core vs. deploy layer](#portable-core-vs-deploy-layer).
+**AgentOS: FastAPI for agents — one AI backend for every frontend.** AgentOS is an agent server built on [Agno](https://docs.agno.com) that turns your agents into a production API that attaches to any client: **REST API** for programmatic use, **chat interfaces** for humans (Slack is wired in; WhatsApp/Telegram/Discord mirror the same pattern), and **MCP** at `/mcp` for AI apps (claude.ai, ChatGPT, Cursor, Claude Code) — which work *through* the platform, not just on it. The repo itself is designed for coding agents to build and extend. It comes with seven coding agent skills that cover platform setup, the full agent development lifecycle, and the production deploy, plus two platform agents — Agent Builder (creates agents, teams, and workflows) and Platform Manager (understands, monitors, and explains the platform) — and WebSearch as the simplest sample agent to copy. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Runs locally via Docker; this template deploys to Modal (paired with Neon Postgres) with a single script and is the Modal sibling of the `agentos-*` deployment family — see [Portable core vs. deploy layer](#portable-core-vs-deploy-layer).
 
 ## Architecture
 
@@ -21,7 +21,7 @@ Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - `app.settings.default_model()` returns `OpenAIResponses(id="gpt-5.6-sol")` — bump the model in one place.
 - `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, reasoning tools, utility functions, the default model, the shared DB, and the reference agents (web-search, platform-manager).
-- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. Scheduled evals are **off** by default — set `ENABLE_SCHEDULED_EVALS=True` to schedule the run-evals workflow.
+- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. The run-evals schedule is always registered but ships **disabled** (it uses model calls) — flip it on from the AgentOS UI when you want scheduled eval runs; the toggle survives reboots.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - MCP server on by default (`mcp_server=True`) at `/mcp` — see [MCP interface](#mcp-interface).
 - MCP OAuth lights up when `MCP_CONNECT_SECRET` is set (built-in authorization server) — how claude.ai and ChatGPT (web) connect; see [MCP interface](#mcp-interface).
@@ -38,14 +38,14 @@ Shared:
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/platform_manager.py`](agents/platform_manager.py) | Flagship agent — codebase context provider + read-only runtime tools (eval history, deployment-check reports + on-demand diagnostic run, schedules, components). |
 | [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates, edits, and publishes agents, teams, and workflows through StudioTools immediately; only deletes keep a HITL confirmation gate. |
-| [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, MCP reachability, Slack config, schedule flags, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
-| [`workflows/run_evals.py`](workflows/run_evals.py) | Optional workflow — runs a tagged subset of the eval suite and returns a compact report. Registered but not scheduled unless `ENABLE_SCHEDULED_EVALS=True`. |
+| [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, MCP reachability, Slack config, schedule state, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
+| [`workflows/run_evals.py`](workflows/run_evals.py) | Optional workflow — runs a tagged subset of the eval suite and returns a compact report. Its daily schedule ships disabled — enable it from the AgentOS UI. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
 | [`db/session.py`](db/session.py) | `get_postgres_db()`, `create_knowledge()`. |
 | [`db/url.py`](db/url.py) | Builds the database URL from env. |
 | [`evals/cases.py`](evals/cases.py) | Eval cases (each is a `Case` with optional judge + reliability checks). |
 | [`evals/__main__.py`](evals/__main__.py) | `python -m evals` — thin entrypoint over agno's eval suite runner (`agno.eval.cli`). |
-| [`.agents/skills/`](.agents/skills/) | Dev-time **coding-agent workflows** (`setup-platform`, `create-new-agent`, `extend-agent`, `improve-agent`, `eval-and-improve`, `review-and-improve`) — slash commands coding agents run *on this repo*. `.claude/skills` is a committed symlink into it — see [Working with coding agents](#working-with-coding-agents). |
+| [`.agents/skills/`](.agents/skills/) | Dev-time **coding-agent workflows** (`setup-platform`, `create-new-agent`, `extend-agent`, `improve-agent`, `eval-and-improve`, `review-and-improve`, `deploy-platform`) — slash commands coding agents run *on this repo*. `.claude/skills` is a committed symlink into it — see [Working with coding agents](#working-with-coding-agents). |
 | [`README.md`](README.md) | Public entry point — its Get Started prompt hands a coding agent to the `setup-platform` skill (clone to first agent). |
 | [`compose.yaml`](compose.yaml) | Docker Compose for local development. |
 | [`modal_app.py`](modal_app.py) | Modal deploy config — ASGI app from the repo's Dockerfile at 2 CPU/4 GB, min_containers=1 (always-warm scheduler + MCP), max_containers=1 (never two schedulers), @modal.concurrent for parallel requests. |
@@ -174,7 +174,7 @@ Run the `/review-and-improve` skill ([`.agents/skills/review-and-improve`](.agen
 
 Dev-time **coding-agent workflows** live in [`.agents/skills/`](.agents/skills/) — the vendor-neutral home for coding-agent assets, mirroring how `CLAUDE.md` symlinks to `AGENTS.md`. `.claude/skills` is a committed symlink into it, so Claude Code picks the skills up on every clone with no setup step; other harnesses (Codex, Cursor, …) can symlink the same folder. (Windows needs developer mode or `core.symlinks=true` for the symlink to materialize.) Claude-specific config like `.claude/settings.json` stays a real file in `.claude/`.
 
-These workflows cover platform setup and the agent-development lifecycle in this template:
+These workflows cover platform setup, the agent-development lifecycle, and the production deploy in this template:
 
 - **`/setup-platform`** — take a fresh clone to a running platform with a first agent live on it: Docker check, `.env`, boot, MCP proof, the AgentOS UI connect, then a `create-new-agent` handoff. The README's Get Started prompt and the os.agno.com onboarding prompt both drive it.
 - **`/create-new-agent`** — scaffold a new agent: guided discovery or from a concrete idea → generate `agents/<slug>.py`, register it, smoke-test it live.
@@ -182,6 +182,7 @@ These workflows cover platform setup and the agent-development lifecycle in this
 - **`/improve-agent`** — Claude drives. Derives probes from the agent's `INSTRUCTIONS`, judges, edits, re-runs. No user input needed.
 - **`/eval-and-improve`** — run the eval suite, diagnose failures, fix in scope until green.
 - **`/review-and-improve`** — repo-wide drift sweep (docs vs code vs config).
+- **`/deploy-platform`** — take the proven local platform to production with this repo's deploy scripts: preflight the CLI and account, deploy, walk the JWT key step, verify the live platform on its public URL, hand over redeploy/logs/teardown.
 
 Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Code matches it from the skill's `description`.
 
@@ -197,7 +198,6 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `MCP_CONNECT_SECRET` | no | — | If set (≥16 chars, e.g. `openssl rand -base64 32`), `/mcp` becomes its own OAuth 2.1 authorization server (built-in tier) so claude.ai and ChatGPT (web) can connect; connecting asks for this secret on a consent page. Requires `AGENTOS_URL`. PAT and JWT bearers keep working alongside. `scripts/modal/up.sh` auto-generates it into your env file on deploy. |
 | `AGENTOS_MCP_SIGNING_KEY` | no | — | Optional high-entropy signing-key material (≥32 chars) for OAuth tokens. Unset, a strong key is generated and persisted in the database. Rotating it invalidates outstanding tokens. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron (`app/schedules.py`) runs daily by default. Set `False` to disable; the workflow stays runnable on demand regardless. |
-| `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
 | `EVALS_TAG` | no | `smoke` | Eval tag run by the run-evals workflow. |
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
@@ -220,9 +220,9 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 
 `scheduler=True` is on in [`app/main.py`](app/main.py). A schedule is a cron expression + an HTTP endpoint (a workflow or agent run); the poller fires due jobs in the background. Registration lives in [`app/schedules.py`](app/schedules.py)'s `register_schedules()`, called from the lifespan — idempotent (`if_exists="update"`, safe on every boot) and fail-soft (a bad schedule logs a warning rather than crashing startup).
 
-**Reference examples.** [`workflows/deployment_check.py`](workflows/deployment_check.py) is a one-step, **deterministic** workflow — no LLM, no token cost — that returns a deployment readiness report. It checks DB connectivity and tables, JWT config, scheduler URL, MCP endpoint reachability, Slack env consistency, schedule flags, and reference component imports. [`app/schedules.py`](app/schedules.py) registers a daily cron that hits its endpoint (`POST /workflows/deployment-check/runs`). Because it's deterministic and free, the cron runs **on** by default (daily at 13:00 UTC); disable it with `ENABLE_DEPLOY_CHECK=False`.
+**Reference examples.** [`workflows/deployment_check.py`](workflows/deployment_check.py) is a one-step, **deterministic** workflow — no LLM, no token cost — that returns a deployment readiness report. It checks DB connectivity and tables, JWT config, scheduler URL, MCP endpoint reachability, Slack env consistency, schedule state, and reference component imports. [`app/schedules.py`](app/schedules.py) registers a daily cron that hits its endpoint (`POST /workflows/deployment-check/runs`). Because it's deterministic and free, the cron runs **on** by default (daily at 13:00 UTC); disable it with `ENABLE_DEPLOY_CHECK=False`.
 
-[`workflows/run_evals.py`](workflows/run_evals.py) runs a tagged subset of the eval suite and returns a compact report. It is registered in AgentOS for on-demand use, but its cron is **off** by default because it uses model calls. Set `ENABLE_SCHEDULED_EVALS=True` to schedule the smoke-tagged cases daily at 14:00 UTC.
+[`workflows/run_evals.py`](workflows/run_evals.py) runs a tagged subset of the eval suite and returns a compact report. Its daily 14:00 UTC schedule is always registered but ships **disabled** because it uses model calls — enable it from the AgentOS UI (or `POST /schedules/{id}/enable`) to run the smoke-tagged cases daily. The enabled toggle is yours after that: boot-time registration refreshes the schedule's definition but never overrides it.
 
 To add your own: define a `Workflow` in `workflows/`, import it into [`app/main.py`](app/main.py) and add it to `AgentOS(workflows=[...])`, and register a schedule for it in `register_schedules()`. Other common uses: **maintenance** (purge old sessions, vacuum tables), **periodic re-evaluation** (run `python -m evals` weekly to catch regressions).
 
@@ -265,6 +265,8 @@ When editing, keep that boundary crisp: platform behavior belongs in the core, M
 
 ## Deploying to Modal
 
+Hand it to a coding agent — the [`/deploy-platform`](.agents/skills/deploy-platform/SKILL.md) skill conducts this whole flow (preflight, deploy, the JWT key step, live verification) — or drive it yourself:
+
 ```bash
 ./scripts/modal/up.sh        # Neon project + agentos-secrets + modal deploy (×2: env pin rides rev 2)
 ./scripts/modal/env-sync.sh  # rewrite the secret from .env.production (default) or .env + redeploy
@@ -278,7 +280,7 @@ Modal has no managed Postgres, so `up.sh` pairs the app with a **Neon** project 
 
 `up.sh` also generates `MCP_CONNECT_SECRET` into the env file when missing and prints it in the closing summary (the second deploy ships it via the `agentos-secrets` secret), so chat apps can connect over OAuth from the first deploy — see [MCP interface](#mcp-interface).
 
-JWT auth is on by default. Once the URL exists, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live AgentOS`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM at the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. If you skip the prompt or run non-interactively, add the key later and run `./scripts/modal/env-sync.sh`.
+JWT auth is on by default. Once the URL exists, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live AgentOS`, and flip Token-Based Authorization (JWT) on right on the connect panel — Settings → OS & Security is the fallback if you connected without it), paste the full PEM at the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. If you skip the prompt or run non-interactively, add the key later and run `./scripts/modal/env-sync.sh`.
 
 One Modal-specific caveat to verify on the first cloud E2E: Modal may cycle the warm container during platform maintenance; the scheduler re-registers idempotently on boot (`app/schedules.py`), but a cron falling exactly inside a cycle window would skip one firing.
 
