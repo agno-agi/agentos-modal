@@ -300,7 +300,7 @@ fi
 
 if [[ -n "$AUTH_REQUIRES_JWT" && -z "$JWT_VERIFICATION_KEY" && -z "$JWT_JWKS_FILE" ]]; then
     echo ""
-    echo -e "${DIM}No JWT auth config — the app will refuse traffic until you add${NC}"
+    echo -e "${DIM}No JWT auth config — the container exits on boot and the deploy fails until you add${NC}"
     echo -e "${DIM}JWT_VERIFICATION_KEY to ${ENV_FILE:-.env.production} and run ./scripts/modal/env-sync.sh.${NC}"
 fi
 
