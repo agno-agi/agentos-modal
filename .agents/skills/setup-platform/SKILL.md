@@ -60,7 +60,12 @@ The UI is where they chat with their agents and inspect sessions, memory, and ev
 | Endpoint | `http://localhost:8000` |
 | Name | `Local AgentOS` (the default) |
 
-Always return the clickable **Connect Local AgentOS** link in the message, even if you can also open it for the user. It lands on the **Connect OS** dialog with the endpoint and name filled in; sign-in returns to the same configured link. The user only needs to review the details and confirm the connection. The query parameters are `endpoint` and `name`.
+Always return the clickable **Connect Local AgentOS** link in the message, even if you can also open it for the user. Then tailor the direction to the screen they already have open:
+
+- If they came from Agno onboarding and the **Connect your AgentOS** screen is open with "Awaiting connection", tell them to return to that tab and click **Connect OS**. Its form already matches the table, and completing it finishes onboarding. Keep the URL in the message as a fallback, but don't direct them away from active onboarding.
+- Otherwise, tell them to open **Connect Local AgentOS**. It lands on the standalone **Connect OS** dialog with the endpoint and name filled in; sign-in returns to the same configured link. They only need to review the details and confirm the connection.
+
+The connection URL uses the `endpoint` and `name` query parameters.
 
 Don't gate on the click, and never ask whether they'd rather connect or build first: after the connect direction, bridge with "now let's build your first agent" and deliver Step 6's build move. If they'd rather skip the UI, carry on — they can connect anytime.
 
