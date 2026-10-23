@@ -188,8 +188,10 @@ You'll need Modal CLI with `modal token new` completed, Neon CLI with `neonctl a
 [ -f .env.production ] || cp example.env .env.production
 ```
 
-Add `OPENAI_API_KEY` and any other model keys you use. Keep `RUNTIME_ENV=prd`
-or leave it unset. The scripts read `.env.production` before `.env`.
+Add `OPENAI_API_KEY` and any other model keys you use, such as `ANTHROPIC_API_KEY`
+or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Engineer. Keep `RUNTIME_ENV=prd` or leave
+it unset. The scripts read `.env.production` before `.env` and upload every key
+in the file to the `agentos-secrets` Modal secret.
 
 Set `NEON_ORG_ID` in `.env.production` (find it with `neonctl orgs list`). To use an existing database, fill in the `DB_*` settings instead. An existing database is not deleted by the teardown script unless its `NEON_PROJECT_ID` is recorded.
 
@@ -245,10 +247,12 @@ Removes the Modal app and managed secret, and deletes the Neon project when NEON
 ### Sandbox storage
 
 Local Docker sandbox instructions are in the [sandbox guide](docs/sandboxes.md).
-The production deployment does not provision sandbox checkpoint storage.
-Before enabling AWS AgentCore, configure persistent storage mounted at `/data`
-on the API service and give it AWS access. If your deployment cannot provide
-that mount, leave AgentCore disabled. Keep one API instance.
+The production deployment does not attach sandbox checkpoint storage by default.
+Before enabling AWS AgentCore, set `AGENTOS_CHECKPOINTS=true` in `.env.production`
+and redeploy: [modal_app.py](modal_app.py) then mounts a persistent Modal Volume
+named `agentos-checkpoints` at `/data`, and the scripts carry the setting on every
+later deploy. Give the container AWS access through the env file. If you skip the
+volume, leave AgentCore disabled. Keep one API instance.
 
 ## Verify and develop
 

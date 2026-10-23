@@ -9,7 +9,8 @@
 #      ./scripts/modal/env-sync.sh .env        # syncs .env instead
 #
 #    Rewrites the agentos-secrets Modal secret from the env file (every
-#    non-NEON_* key, plus PGSSLMODE=require for Neon TLS) and redeploys —
+#    key except the NEON_* and AGENTOS_CHECKPOINTS script settings, plus
+#    PGSSLMODE=require for Neon TLS) and redeploys —
 #    secrets are read at container start, so the redeploy is what applies
 #    them. Multi-line values (PEM-formatted JWT_VERIFICATION_KEY) are
 #    handled correctly.
@@ -72,8 +73,25 @@ ${line}"
     current_value="${current_value%\'}"
 
     case "$current_key" in
-        NEON_*)
+        NEON_* | AGENTOS_CHECKPOINTS)
             # Provisioning config for the scripts, not app environment.
+            ;;
+        OPENAI_API_KEY)
+            if [[ -z "$current_value" || "$current_value" == "sk-***" ]]; then
+                echo "OPENAI_API_KEY not set in ${ENV_FILE} — refusing to sync an empty key."
+                exit 1
+            fi
+            echo -e "${DIM}  Setting ${current_key}${NC}"
+            SECRET_ARGS+=("${current_key}=${current_value}")
+            count=$((count + 1))
+            ;;
+        ANTHROPIC_API_KEY)
+            # example.env ships this as a placeholder; never deploy it as a value.
+            if [[ -n "$current_value" && "$current_value" != "sk-***" ]]; then
+                echo -e "${DIM}  Setting ${current_key}${NC}"
+                SECRET_ARGS+=("${current_key}=${current_value}")
+                count=$((count + 1))
+            fi
             ;;
         *)
             echo -e "${DIM}  Setting ${current_key}${NC}"
@@ -97,6 +115,11 @@ SECRET_ARGS+=("PGSSLMODE=require")
 modal secret create --force agentos-secrets "${SECRET_ARGS[@]}" > /dev/null
 
 echo ""
+# modal_app.py reads AGENTOS_CHECKPOINTS at deploy time; carry the env file's
+# setting so a sync never silently drops the /data volume.
+AGENTOS_CHECKPOINTS="$(sed -nE 's/^AGENTOS_CHECKPOINTS=//p' "$ENV_FILE" | tr -d "\"'" | head -1)"
+export AGENTOS_CHECKPOINTS
+
 echo -e "${ORANGE}▸${NC} ${BOLD}Redeploying so the running container picks the secret up${NC}"
 echo -e "${DIM}> modal deploy modal_app.py::modal_app${NC}"
 modal deploy modal_app.py::modal_app > /dev/null

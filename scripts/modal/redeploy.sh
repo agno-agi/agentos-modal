@@ -29,6 +29,16 @@ if ! modal app list > /dev/null 2>&1; then
     exit 1
 fi
 
+# modal_app.py reads AGENTOS_CHECKPOINTS at deploy time; carry the env file's
+# setting so a redeploy never silently drops the /data volume.
+ENV_FILE=""
+[[ -f .env.production ]] && ENV_FILE=".env.production"
+[[ -z "$ENV_FILE" && -f .env ]] && ENV_FILE=".env"
+if [[ -n "$ENV_FILE" && -z "$AGENTOS_CHECKPOINTS" ]]; then
+    AGENTOS_CHECKPOINTS="$(sed -nE 's/^AGENTOS_CHECKPOINTS=//p' "$ENV_FILE" | tr -d "\"'" | head -1)"
+fi
+export AGENTOS_CHECKPOINTS
+
 echo ""
 echo -e "${ORANGE}▸${NC} ${BOLD}Redeploying agentos${NC}"
 echo ""
