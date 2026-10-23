@@ -14,14 +14,19 @@
 #    (once; NEON_PROJECT_ID + DB_* persist to your env file) → write the
 #    agentos-secrets Modal secret → `modal deploy` → pin AGENTOS_URL →
 #    generate MCP_CONNECT_SECRET (chat-app OAuth) when missing → JWT
-#    pause → second deploy carrying the final env.
+#    pause → env-sync.sh uploads every key in the env file (model
+#    credentials such as ANTHROPIC_API_KEY included) and deploys the final env.
+#
+#    Set AGENTOS_CHECKPOINTS=true in the env file to mount a persistent
+#    Modal Volume at /data for AgentCore sandbox checkpoints.
 #
 #    Prerequisites:
 #      - modal CLI (`pip install modal` or `uv tool install modal`) +
 #        `modal token new` completed
 #      - neonctl (`npm i -g neonctl` or `brew install neonctl`) +
 #        `neonctl auth` completed
-#      - OPENAI_API_KEY set in environment (or .env / .env.production)
+#      - OPENAI_API_KEY set in environment (or .env / .env.production);
+#        ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN there too for Claude Engineer
 #
 ############################################################################
 
@@ -151,6 +156,8 @@ write_modal_secret() {
         "DB_DATABASE=${DB_DATABASE}"
         "PGSSLMODE=require"
     )
+    [[ -n "$ANTHROPIC_API_KEY" ]] && args+=("ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
+    [[ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]] && args+=("CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
     [[ -n "$AGENTOS_URL" ]] && args+=("AGENTOS_URL=${AGENTOS_URL}")
     [[ -n "$MCP_CONNECT_SECRET" ]] && args+=("MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}")
     [[ -n "$JWT_VERIFICATION_KEY" ]] && args+=("JWT_VERIFICATION_KEY=${JWT_VERIFICATION_KEY}")
@@ -182,10 +189,12 @@ if ! command -v python3 &> /dev/null; then
     echo "python3 is required (it parses neonctl output)."
     exit 1
 fi
-if [[ -z "$OPENAI_API_KEY" ]]; then
+if [[ -z "$OPENAI_API_KEY" || "$OPENAI_API_KEY" == "sk-***" ]]; then
     echo "OPENAI_API_KEY not set. Add to .env (or .env.production) or export it."
     exit 1
 fi
+# example.env ships the Claude key as a placeholder; never deploy it as a value.
+[[ "$ANTHROPIC_API_KEY" == "sk-***" ]] && ANTHROPIC_API_KEY=""
 if ! modal app list > /dev/null 2>&1; then
     echo "Modal CLI not authenticated. Run: modal token new"
     exit 1
@@ -306,11 +315,17 @@ fi
 
 # Second deploy: the secret now carries AGENTOS_URL + MCP_CONNECT_SECRET
 # (+ JWT if minted). Secrets are read at container start, so a redeploy
-# applies them.
+# applies them. The env file is the source of truth, so env-sync.sh owns
+# this write: it uploads every key in the file (the model credentials the
+# README asks for included) rather than the fixed list above.
 echo ""
 echo -e "${ORANGE}▸${NC} ${BOLD}Applying final env (second deploy)${NC}"
-write_modal_secret
-modal deploy modal_app.py::modal_app > /dev/null
+if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
+    "$(dirname "$0")/env-sync.sh" "$ENV_FILE"
+else
+    write_modal_secret
+    modal deploy modal_app.py::modal_app > /dev/null
+fi
 
 echo ""
 echo -e "${BOLD}Done.${NC}"
