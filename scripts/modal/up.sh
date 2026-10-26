@@ -17,8 +17,7 @@
 #    pause → env-sync.sh uploads every key in the env file (model
 #    credentials such as ANTHROPIC_API_KEY included) and deploys the final env.
 #
-#    Set AGENTOS_CHECKPOINTS=true in the env file to mount a persistent
-#    Modal Volume at /data for AgentCore sandbox checkpoints.
+#    Optional AgentCore engineering uses S3 checkpoints; see docs/sandboxes.md.
 #
 #    Prerequisites:
 #      - modal CLI (`pip install modal` or `uv tool install modal`) +

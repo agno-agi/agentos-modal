@@ -10,9 +10,7 @@
 #
 #    Stops the Modal app (the always-warm container with it) and deletes
 #    the Neon Postgres project — all data in the database is deleted. The
-#    agentos-secrets Modal secret is deleted too, and so is the
-#    agentos-checkpoints Volume when one exists (AgentCore checkpoints are
-#    lost with it). Verify afterwards with
+#    agentos-secrets Modal secret is deleted too. Verify afterwards with
 #    `modal app list` and `neonctl projects list`.
 #
 ############################################################################
@@ -52,7 +50,6 @@ echo -e "${ORANGE}▸${NC} ${BOLD}Modal Teardown${NC}"
 echo ""
 echo -e "This destroys:"
 echo -e "  - Modal app      agentos (and the agentos-secrets secret)"
-echo -e "  - Modal volume   agentos-checkpoints, if present (AgentCore checkpoints deleted)"
 if [[ -n "$NEON_PROJECT_ID" ]]; then
     echo -e "  - Neon project   ${NEON_PROJECT_ID}  ${RED}(all data deleted)${NC}"
 else
@@ -75,11 +72,6 @@ modal app stop agentos \
     || echo -e "${DIM}Stop returned non-zero — verifying below${NC}"
 modal secret delete agentos-secrets --yes 2> /dev/null \
     || echo -e "${DIM}Secret already gone or delete needs manual confirm: modal secret delete agentos-secrets${NC}"
-if modal volume list 2> /dev/null | grep -qE '\bagentos-checkpoints\b'; then
-    echo -e "${DIM}> modal volume delete agentos-checkpoints${NC}"
-    modal volume delete agentos-checkpoints --yes 2> /dev/null \
-        || echo -e "${DIM}Volume delete needs manual confirm: modal volume delete agentos-checkpoints${NC}"
-fi
 
 if [[ -n "$NEON_PROJECT_ID" ]]; then
     echo ""
