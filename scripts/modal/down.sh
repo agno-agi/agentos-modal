@@ -67,8 +67,8 @@ if [[ "$1" != "--yes" ]]; then
 fi
 
 echo ""
-echo -e "${DIM}> modal app stop agentos${NC}"
-modal app stop agentos \
+echo -e "${DIM}> modal app stop agentos --yes${NC}"
+modal app stop agentos --yes \
     || echo -e "${DIM}Stop returned non-zero — verifying below${NC}"
 modal secret delete agentos-secrets --yes 2> /dev/null \
     || echo -e "${DIM}Secret already gone or delete needs manual confirm: modal secret delete agentos-secrets${NC}"
