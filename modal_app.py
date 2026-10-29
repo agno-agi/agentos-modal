@@ -26,15 +26,19 @@ libpq honors the env var, so the portable core needs no change — AGENTOS_URL
 + MCP_CONNECT_SECRET for MCP OAuth, and JWT config once minted).
 
 Optional AgentCore engineering uses S3 checkpoints without an API volume.
-See docs/sandboxes.md for setup and docs/scaling.md before adding replicas.
+See docs/harnesses.md for setup and docs/scaling.md before adding replicas.
 """
 
-# Deploy-layer dependency: `modal` is deliberately not in the core
-# requirements.txt (that file is byte-identical family-wide), so mypy runs
-# without it installed.
-import modal  # type: ignore[import-not-found]
+from typing import TYPE_CHECKING, Any
 
-image = modal.Image.from_dockerfile("Dockerfile")
+# Modal is a deploy-only dependency, absent from the shared runtime requirements.
+# Without it, mypy can mistake scripts/modal/ for the SDK namespace.
+if TYPE_CHECKING:
+    modal: Any
+else:
+    import modal
+
+image = modal.Image.from_dockerfile("Dockerfile").env({"SANDBOX_PROVIDER": "agentcore"})
 
 modal_app = modal.App("agentos")
 

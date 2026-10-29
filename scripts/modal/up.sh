@@ -17,7 +17,7 @@
 #    pause → env-sync.sh uploads every key in the env file (model
 #    credentials such as ANTHROPIC_API_KEY included) and deploys the final env.
 #
-#    Optional AgentCore engineering uses S3 checkpoints; see docs/sandboxes.md.
+#    Optional AgentCore engineering uses S3 checkpoints; see docs/harnesses.md.
 #
 #    Prerequisites:
 #      - modal CLI (`pip install modal` or `uv tool install modal`) +
@@ -224,11 +224,11 @@ uris = d.get("connection_uris") or []
 uri = uris[0]["connection_uri"] if uris else ""
 u = urlparse(uri)
 print(f"NEON_PROJECT_ID={project_id}")
-print(f"DB_HOST={u.hostname or \"\"}")
+print("DB_HOST=" + (u.hostname or ""))
 print(f"DB_PORT={u.port or 5432}")
-print(f"DB_USER={u.username or \"\"}")
-print(f"DB_PASS={u.password or \"\"}")
-print(f"DB_DATABASE={(u.path or \"/\").lstrip(\"/\")}")
+print("DB_USER=" + (u.username or ""))
+print("DB_PASS=" + (u.password or ""))
+print("DB_DATABASE=" + (u.path or "/").lstrip("/"))
 ')"
     if [[ -z "$DB_HOST" || -z "$DB_PASS" ]]; then
         echo "Couldn't parse the Neon connection URI. Inspect: neonctl projects list"
