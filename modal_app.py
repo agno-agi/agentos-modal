@@ -26,7 +26,7 @@ libpq honors the env var, so the portable core needs no change — AGENTOS_URL
 + MCP_CONNECT_SECRET for MCP OAuth, and JWT config once minted).
 
 Optional AgentCore engineering uses S3 checkpoints without an API volume.
-See docs/sandboxes.md for setup and docs/scaling.md before adding replicas.
+See docs/harnesses.md for setup and docs/scaling.md before adding replicas.
 """
 
 # Deploy-layer dependency: `modal` is deliberately not in the core
@@ -34,7 +34,7 @@ See docs/sandboxes.md for setup and docs/scaling.md before adding replicas.
 # without it installed.
 import modal  # type: ignore[import-not-found]
 
-image = modal.Image.from_dockerfile("Dockerfile")
+image = modal.Image.from_dockerfile("Dockerfile").env({"SANDBOX_PROVIDER": "agentcore"})
 
 modal_app = modal.App("agentos")
 

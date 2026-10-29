@@ -17,7 +17,7 @@
 #    pause → env-sync.sh uploads every key in the env file (model
 #    credentials such as ANTHROPIC_API_KEY included) and deploys the final env.
 #
-#    Optional AgentCore engineering uses S3 checkpoints; see docs/sandboxes.md.
+#    Optional AgentCore engineering uses S3 checkpoints; see docs/harnesses.md.
 #
 #    Prerequisites:
 #      - modal CLI (`pip install modal` or `uv tool install modal`) +
